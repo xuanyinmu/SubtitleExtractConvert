@@ -13,9 +13,9 @@
 
 
 #define REVERSE_SIZE 32
-#define CPP_ENDWITHSRT(path) (path[path.size()-4] == '.' && path[path.size() - 3] == 's' \
+#define CPP_ENDWITH_SRT(path) (path[path.size()-4] == '.' && path[path.size() - 3] == 's' \
 	&& path[path.size()-2] == 'r' && path[path.size() - 1] == 't')
-#define CPP_ENDWITHASS(path) (path[path.size()-4] == '.' && path[path.size() - 3] == 'a' \
+#define CPP_ENDWITH_ASS(path) (path[path.size()-4] == '.' && path[path.size() - 3] == 'a' \
 	&& path[path.size()-2] == 's' && path[path.size() - 1] == 's')
 #define C_ENDWITH_SRT(path) (path[strlen(path)-4] == '.' && path[strlen(path) - 3] == 's' \
 	&& path[strlen(path)-2] == 'r' && path[strlen(path) - 1] == 't')

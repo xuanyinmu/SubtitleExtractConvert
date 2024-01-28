@@ -26,12 +26,14 @@ void SubtitleDecoder::Decode()
 void SubtitleDecoder::DecodeImp()
 {
 	AVPacket packet;
+	int gotSubtitle, funcRet = -1;
+	AVSubtitle subtitle;
 	while (av_read_frame(m_FormatContextPtr, &packet) >= 0) {
 		if (packet.stream_index == m_SubtitleStreamIndex) {
-			AVSubtitle subtitle;
-			int gotSubtitle;
-			if (avcodec_decode_subtitle2(m_CodecContextPtr, &subtitle, &gotSubtitle, &packet) >= 0 && gotSubtitle) {
-				// Do something with subtitle
+			// avcodec_decode_subtitle2 失败返回负数 否则返回已用字节数
+			funcRet = avcodec_decode_subtitle2(m_CodecContextPtr, &subtitle, &gotSubtitle, &packet);
+			if (funcRet >= 0 && gotSubtitle != 0) {
+				// 保存字幕文件
 				SaveSubtitleFlieImp(subtitle);
 			}
 			avsubtitle_free(&subtitle);
@@ -44,16 +46,10 @@ inline void SubtitleDecoder::SaveSubtitleFlieImp(const AVSubtitle& subtitle)
 {
 	std::ofstream ofs;
 
-	JudgeSubtitleTypeImp(subtitle);
+	JudgeSubtitleTypeImp(subtitle, ofs);
 	if (m_SubtitleType == SUBTITLE_NONE)
 	{
 		return;
-	}
-
-	ofs.open(m_OutFileDir);
-	if (!ofs.is_open())
-	{
-		std::cout << m_OutFileDir << "打开失败" << std::endl;
 	}
 
 	for (unsigned int i = 0; i < subtitle.num_rects; i++)
@@ -84,9 +80,9 @@ inline void SubtitleDecoder::SaveSubtitleFlieImp(const AVSubtitle& subtitle)
 	ofs.close();
 }
 
-inline void SubtitleDecoder::JudgeSubtitleTypeImp(const AVSubtitle& subtitle)
+inline void SubtitleDecoder::JudgeSubtitleTypeImp(const AVSubtitle& subtitle, std::ofstream& ofs)
 {
-	if (subtitle.num_rects > 0)
+	if (subtitle.num_rects > 0 && (!JudgeOutFilePathExistImp()))
 	{
 		switch (subtitle.rects[0]->type)
 		{
@@ -112,7 +108,23 @@ inline void SubtitleDecoder::JudgeSubtitleTypeImp(const AVSubtitle& subtitle)
 			default:
 				break;
 		}
+
 	}
+	ofs.open(m_OutFileDir, std::ios::out | std::ios::app);
+	if (!ofs.is_open())
+	{
+		std::cout << m_OutFileDir << "打开失败" << std::endl;
+	}
+}
+
+inline bool SubtitleDecoder::JudgeOutFilePathExistImp()
+{
+	if (m_OutFileDir.size() > 4 && 
+		(CPP_ENDWITH_SRT(m_OutFileDir) || CPP_ENDWITH_ASS(m_OutFileDir)))
+	{
+		return true;
+	}
+	return false;
 }
 
 void SubtitleDecoder::ProcPathImp()
