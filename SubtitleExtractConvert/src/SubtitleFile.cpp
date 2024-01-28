@@ -102,6 +102,7 @@ void SubtitleFile::ReadSubtitleDataImp(const std::string path)
 	}
 
 	m_SubtitleDatas.emplace(path,data);
+	wifs.close();
 }
 
 void SubtitleFile::ProcRootDirPathImp()
