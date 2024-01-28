@@ -27,6 +27,9 @@
     <ClCompile Include="src\T2SDictionary.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="src\SubtitleDecoder.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\SubtitleFile.h">
@@ -36,6 +39,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="src\T2SDictionary.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SubtitleDecoder.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
