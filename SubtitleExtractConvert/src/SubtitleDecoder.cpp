@@ -2,7 +2,7 @@
 #include <iostream>
 
 SubtitleDecoder::SubtitleDecoder(const std::string& inFilePath, const std::string& outFileDir)
-	:m_FormatContextPtr(nullptr), m_CodecContextPtr(nullptr), m_SubtitleStreamIndex(-1),
+	:m_FormatContextPtr(nullptr), /*m_CodecContextPtr(nullptr), m_SubtitleStreamIndex(-1),*/
 	m_SubtitleType(SUBTITLE_NONE), m_InFilePath(inFilePath), m_OutFileDir(outFileDir)
 {
 	FFmpegInit();
@@ -12,9 +12,12 @@ SubtitleDecoder::SubtitleDecoder(const std::string& inFilePath, const std::strin
 
 SubtitleDecoder::~SubtitleDecoder()
 {
-	// ÊÍ·Å×ÊÔ´
-	avcodec_free_context(&m_CodecContextPtr);
-	// ¹Ø±ÕÃ½ÌåÎÄ¼ş
+	// é‡Šæ”¾è§£ç å™¨ä¸Šä¸‹æ–‡
+	for (auto& codecContext : m_IndexCodecContextUMap)
+	{
+		avcodec_free_context(&codecContext.second.codecContext);
+	}
+	// å…³é—­åª’ä½“æ–‡ä»¶
 	avformat_close_input(&m_FormatContextPtr);
 }
 
@@ -28,27 +31,43 @@ void SubtitleDecoder::DecodeImp()
 	AVPacket packet;
 	int gotSubtitle, funcRet = -1;
 	AVSubtitle subtitle;
-	while (av_read_frame(m_FormatContextPtr, &packet) >= 0) {
-		if (packet.stream_index == m_SubtitleStreamIndex) {
-			// avcodec_decode_subtitle2 Ê§°Ü·µ»Ø¸ºÊı ·ñÔò·µ»ØÒÑÓÃ×Ö½ÚÊı
-			funcRet = avcodec_decode_subtitle2(m_CodecContextPtr, &subtitle, &gotSubtitle, &packet);
-			if (funcRet >= 0 && gotSubtitle != 0) {
-				// ±£´æ×ÖÄ»ÎÄ¼ş
-				SaveSubtitleFlieImp(subtitle);
+	
+	// è¯»å–åª’ä½“æ–‡ä»¶çš„å¸§ av_read_frame 
+	while (av_read_frame(m_FormatContextPtr, &packet) >= 0) 
+	{
+		for (const auto& pair : m_IndexCodecContextUMap)
+		{
+			if (packet.stream_index == pair.first) {
+				// avcodec_decode_subtitle2 ä½¿ç”¨å¯¹åº”è§£ç å™¨ä¸Šä¸‹æ–‡ç•Œé¢å­—å¹•
+				if (!pair.second.codecContext)
+				{
+					std::cerr << "codecContext == nullptr" << std::endl;
+				}
+				
+				funcRet = avcodec_decode_subtitle2(pair.second.codecContext, &subtitle, &gotSubtitle, &packet);
+				if (funcRet >= 0 && gotSubtitle != 0) {
+					// ä¿å­˜å­—å¹•ä¿¡æ¯
+					SaveSubtitleFlieImp(subtitle, pair.second.title);
+					m_OutFileDir.resize(m_OutFileDir.size() - pair.second.title.size());
+				}
+				avsubtitle_free(&subtitle);
 			}
-			avsubtitle_free(&subtitle);
+			av_packet_unref(&packet);
 		}
-		av_packet_unref(&packet);
 	}
+	
 }
 
-inline void SubtitleDecoder::SaveSubtitleFlieImp(const AVSubtitle& subtitle)
+inline void SubtitleDecoder::SaveSubtitleFlieImp(const AVSubtitle& subtitle, const std::string& metaTitle)
 {
 	std::ofstream ofs;
+	
+	m_OutFileDir += metaTitle;
 
 	JudgeSubtitleTypeImp(subtitle, ofs);
 	if (m_SubtitleType == SUBTITLE_NONE)
 	{
+		std::cerr << "m_SubtitleType == SUBTITLE_NONE" << std::endl;
 		return;
 	}
 
@@ -113,7 +132,7 @@ inline void SubtitleDecoder::JudgeSubtitleTypeImp(const AVSubtitle& subtitle, st
 	ofs.open(m_OutFileDir, std::ios::out | std::ios::app);
 	if (!ofs.is_open())
 	{
-		std::cout << m_OutFileDir << "´ò¿ªÊ§°Ü" << std::endl;
+		std::cerr << m_OutFileDir << "æ‰“å¼€å¤±è´¥" << std::endl;
 	}
 }
 
@@ -129,7 +148,7 @@ inline bool SubtitleDecoder::JudgeOutFilePathExistImp()
 
 void SubtitleDecoder::ProcPathImp()
 {
-	// ½«ÊäÈëÊä³öÎÄ¼ş/ÎÄ¼ş¼ĞµÄ '\' ×ªÎª '/'
+	// æŠŠæ‰€æœ‰ '\' æ¢æˆ '/'
 	size_t pos = m_InFilePath.find("\\");
 	while (pos != std::string::npos)
 	{
@@ -148,7 +167,7 @@ void SubtitleDecoder::ProcPathImp()
 		m_OutFileDir.resize(m_OutFileDir.size() - 1);
 	}
 
-	// É¾³ıºóÃæµÄ¸ñÊ½ Æ´½ÓÎª Êä³öÎÄ¼ş¼Ğ/ÎÄ¼şÃû µÄÎŞ¸ñÊ½ÎÄ¼şÂ·¾¶
+	// è¾“å‡ºè·¯å¾„æ‹¼æ¥æˆ è¾“å‡ºæ ¹ç›®å½•/è¾“å…¥æ–‡ä»¶å æ— æ ¼å¼
 	pos = m_InFilePath.rfind("/");
 	m_OutFileDir += m_InFilePath.substr(pos);
 	pos = m_OutFileDir.rfind(".");
@@ -157,32 +176,51 @@ void SubtitleDecoder::ProcPathImp()
 
 void SubtitleDecoder::FFmpegInit()
 {
-	// ´ò¿ªÃ½ÌåÎÄ¼ş
+	// æ‰“å¼€åª’ä½“æ–‡ä»¶
 	avformat_open_input(&m_FormatContextPtr, m_InFilePath.c_str(), nullptr, nullptr);
-	// »ñÈ¡Ã½ÌåÎÄ¼şĞÅÏ¢
+	// è·å–åª’ä½“æ–‡ä»¶ä¿¡æ¯
 	avformat_find_stream_info(m_FormatContextPtr, nullptr);
 
-	// ²éÕÒ×ÖÄ»Á÷ codecpar->codec_typeÅĞ¶ÏÁ÷ÀàĞÍ
-	for (unsigned int i = 0; i < m_FormatContextPtr->nb_streams; i++) {
-		if (m_FormatContextPtr->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
-			m_SubtitleStreamIndex = i;
-			break;
+	m_IndexCodecContextUMap.reserve(10);
+	// æŸ¥æ‰¾å­—å¹•æµ codecpar->codec_type æµç±»å‹
+	for (unsigned int i = 0; i < m_FormatContextPtr->nb_streams; i++)
+	{
+		if (m_FormatContextPtr->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE)
+		{
+			m_IndexCodecContextUMap.emplace(i, SubtitleInfo({ nullptr, ""}));
 		}
 	}
 
-	if (m_SubtitleStreamIndex == -1)
+	if (m_IndexCodecContextUMap.empty())
 	{
-		std::cout << "Î´ÕÒµ½×ÖÄ»Á÷" << std::endl;
+		std::cerr << "æ‰¾ä¸åˆ°å­—å¹•æµ" << std::endl;
 	}
 
-	// ²éÕÒ½âÂëÆ÷
-	AVCodecParameters* codecParameters = m_FormatContextPtr->streams[m_SubtitleStreamIndex]->codecpar;
-	const AVCodec* codec = avcodec_find_decoder(codecParameters->codec_id);
-
-	// ´´½¨½âÂëÆ÷ÉÏÏÂÎÄ
-	m_CodecContextPtr = avcodec_alloc_context3(codec);
-	if (avcodec_open2(m_CodecContextPtr, codec, nullptr) != 0)
+	AVDictionaryEntry* tag = nullptr;
+	for (auto& pair : m_IndexCodecContextUMap)
 	{
-		std::cout << "½âÂëÆ÷³õÊ¼»¯Ê§°Ü" << std::endl;
+		// æŸ¥æ‰¾è§£ç å™¨
+		AVCodecParameters* codecParameters = m_FormatContextPtr->streams[pair.first]->codecpar;
+		const AVCodec* codec = avcodec_find_decoder(codecParameters->codec_id);
+
+		/*
+		// åˆ›å»ºè§£ç å™¨ä¸Šä¸‹æ–‡ avcodec_alloc_context3
+		// æ‰“å¼€è§£ç å™¨ avcodec_open2
+		é€šå¸¸åªéœ€è¦ä¿å­˜AVCodecContext*ï¼Œ ç”¨æ¥è¯»å–æ‰€æœ‰å¸§å’Œæ•°æ®
+		*/
+		AVCodecContext* codecContext = avcodec_alloc_context3(codec);
+		if (avcodec_open2(codecContext, codec, nullptr) == 0)
+		{
+			tag = av_dict_get(m_FormatContextPtr->streams[pair.first]->metadata,"title", nullptr, 0);
+			m_IndexCodecContextUMap.emplace(pair.first, SubtitleInfo({ codecContext, ""}));
+			if (tag)
+			{
+				m_IndexCodecContextUMap.emplace(pair.first, SubtitleInfo({ codecContext, tag->value }));
+			}
+		}
+		else
+		{
+			std::cerr << pair.first <<" : " << "è§£ç å™¨æ‰“å¼€å¤±è´¥" << std::endl;
+		}
 	}
 }
