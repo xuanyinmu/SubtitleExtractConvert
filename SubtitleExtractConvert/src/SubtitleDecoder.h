@@ -18,6 +18,7 @@ extern "C" {
 struct SubtitleStreamInfo
 {
 	AVCodecContext* codecContext;
+	//std::wstring title;
 	std::string title;
 };
 
@@ -31,8 +32,9 @@ public:
 
 private:
 	void DecodeImp();
+    inline void RecoverOutputPathImp(const std::string& metaTitle);
 	inline void SaveSubtitleFlieImp(const AVSubtitle& subtitle, const std::string& metaTitle);
-	inline void JudgeSubtitleTypeImp(const AVSubtitle& subtitle, std::ofstream& ofs);
+	inline void JudgeSubtitleTypeImp(const AVSubtitle& subtitle/*, std::ofstream& ofs*/);
 	inline bool JudgeOutFilePathExistImp();
 	void ProcPathImp();
 	void FFmpegInit();
