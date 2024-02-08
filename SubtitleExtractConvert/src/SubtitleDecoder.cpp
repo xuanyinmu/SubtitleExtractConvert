@@ -38,12 +38,11 @@ void SubtitleDecoder::DecodeImp()
 		for (const auto& pair : m_IndexCodecContextUMap)
 		{
 			if (packet.stream_index == pair.first) {
-				// avcodec_decode_subtitle2 使用对应解码器上下文界面字幕
 				if (!pair.second.codecContext)
 				{
 					std::cerr << "codecContext == nullptr" << std::endl;
 				}
-				
+				// avcodec_decode_subtitle2 使用对应解码器上下文界面字幕
 				funcRet = avcodec_decode_subtitle2(pair.second.codecContext, &subtitle, &gotSubtitle, &packet);
 				if (funcRet >= 0 && gotSubtitle != 0) {
 					// 保存字幕信息
