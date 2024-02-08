@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
+    <None Include="src\.editorconfig" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="res\T2SConvertDict\TSCharacters.txt" />

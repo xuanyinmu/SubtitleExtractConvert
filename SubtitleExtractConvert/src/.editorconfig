@@ -3,7 +3,6 @@ root = true
 
 [*.{c++,cc,cpp,cppm,cxx,h,h++,hh,hpp,hxx,inl,ipp,ixx,tlh,tli}]
 
-[*]
 end_of_line = lf
 charset = utf-8
 trim_trailing_whitespace = true

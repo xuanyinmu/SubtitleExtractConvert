@@ -15,7 +15,7 @@ extern "C" {
 	&& path[path.size()-2] == 's' && path[path.size() - 1] == 's')
 
 
-struct SubtitleInfo
+struct SubtitleStreamInfo
 {
 	AVCodecContext* codecContext;
 	std::string title;
@@ -45,7 +45,7 @@ private:
 	//AVCodecContext* m_CodecContextPtr;
 	//int m_SubtitleStreamIndex;
 
-	std::unordered_map<int, SubtitleInfo> m_IndexCodecContextUMap;
+	std::unordered_map<int, SubtitleStreamInfo> m_IndexCodecContextUMap;
 	AVSubtitleType m_SubtitleType;
 	std::string m_InFilePath;
 	std::string m_OutFileDir;

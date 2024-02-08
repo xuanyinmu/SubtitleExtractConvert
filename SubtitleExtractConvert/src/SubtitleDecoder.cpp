@@ -186,7 +186,7 @@ void SubtitleDecoder::FFmpegInit()
 	{
 		if (m_FormatContextPtr->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE)
 		{
-			m_IndexCodecContextUMap.emplace(i, SubtitleInfo({ nullptr, ""}));
+			m_IndexCodecContextUMap.emplace(i, SubtitleStreamInfo({ nullptr, ""}));
 		}
 	}
 
@@ -210,11 +210,11 @@ void SubtitleDecoder::FFmpegInit()
 		AVCodecContext* codecContext = avcodec_alloc_context3(codec);
 		if (avcodec_open2(codecContext, codec, nullptr) == 0)
 		{
-			tag = av_dict_get(m_FormatContextPtr->streams[pair.first]->metadata,"title", nullptr, 0);
-			m_IndexCodecContextUMap.emplace(pair.first, SubtitleInfo({ codecContext, ""}));
+			tag = av_dict_get(m_FormatContextPtr->streams[pair.first]->metadata, "title", nullptr, 0);
+            m_IndexCodecContextUMap[pair.first] = { codecContext, "" };
 			if (tag)
 			{
-				m_IndexCodecContextUMap.emplace(pair.first, SubtitleInfo({ codecContext, tag->value }));
+				m_IndexCodecContextUMap[pair.first] = { codecContext, tag->value };
 			}
 		}
 		else
